@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **JACK**: Duplex streams are now supported.
 - **WebAudio**: Input and duplex streams are now supported.
 - **WebAudio**: Added support for Emscripten targets via [wasm-bindgen/Emscripten integration](https://github.com/wasm-bindgen/wasm-bindgen/issues/5237).
+- Core sample-format negotiation and conversion: `FormatRequest`/`negotiate` pick the best offered stream configuration and return a `NegotiatedConfig` with distinguishable failure variants (`NegotiationError`), while `SampleConverter` and `ConvertBuffer` convert between all PCM sample formats with documented per-sample rounding and clipping rules, zero-copy identity conversions, and a fixed-capacity bounded buffer. DSD formats are explicitly rejected.
 
 ### Changed
 

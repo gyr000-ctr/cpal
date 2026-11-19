@@ -199,10 +199,14 @@ pub use device_description::{
     DeviceDescription, DeviceDescriptionBuilder, DeviceDirection, DeviceType, InterfaceType,
 };
 pub use error::*;
+pub use format_negotiation::{
+    FormatRequest, NegotiatedConfig, NegotiationError, negotiate, negotiate_input, negotiate_output,
+};
 pub use platform::{
     ALL_HOSTS, Device, Devices, Host, HostId, Stream, SupportedInputConfigs,
     SupportedOutputConfigs, available_hosts, default_host, host_from_id,
 };
+pub use sample_convert::{ConvertBuffer, ConvertError, SampleConverter, is_pcm};
 pub use sample_format::{FromSample, I24, Sample, SampleFormat, SizedSample, U24};
 #[cfg(all(
     target_arch = "wasm32",
@@ -214,8 +218,10 @@ use wasm_bindgen::prelude::*;
 pub mod device_description;
 mod duplex;
 mod error;
+pub mod format_negotiation;
 mod host;
 pub mod platform;
+mod sample_convert;
 mod sample_format;
 mod timestamp;
 pub mod traits;
