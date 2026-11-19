@@ -12,10 +12,10 @@ use std::{
 };
 
 use crate::{
-    BufferSize, CallbackInfo, ChannelCount, Data, DeviceDescription, DeviceId, DuplexCallbackInfo,
-    DuplexStreamConfig, Error, ErrorKind, InputDevices, OutputDevices, SAMPLE_RATE_48K,
-    SAMPLE_RATE_CD, SampleFormat, SampleRate, SizedSample, StreamConfig, StreamInstant,
-    SupportedStreamConfig, SupportedStreamConfigRange,
+    BufferSize, CallbackInfo, ChannelCount, Data, DeviceDescription, DeviceEvents, DeviceId,
+    DuplexCallbackInfo, DuplexStreamConfig, Error, ErrorKind, InputDevices, OutputDevices,
+    SAMPLE_RATE_48K, SAMPLE_RATE_CD, SampleFormat, SampleRate, SizedSample, StreamConfig,
+    StreamInstant, SupportedStreamConfig, SupportedStreamConfigRange,
 };
 
 /// A [`Host`] provides access to the available audio devices on the system.
@@ -119,6 +119,34 @@ pub trait HostTrait {
     /// Propagates errors from [`devices`](Self::devices).
     fn output_devices(&self) -> Result<OutputDevices<Self::Devices>, Error> {
         Ok(self.devices()?.filter(DeviceTrait::supports_output))
+    }
+
+    /// Creates a subscription that reports devices being plugged in or unplugged, and the system
+    /// default input/output device changing.
+    ///
+    /// The watcher is seeded with the current state: it reports changes made after this call.
+    /// Pass this host to [`DeviceEvents::poll`] or [`DeviceEvents::drain`] to receive them. See
+    /// the [`device_events`](crate::device_events) module for ordering, deduplication and
+    /// platform coverage.
+    ///
+    /// The default implementation compares enumeration snapshots, which works on every host that
+    /// can enumerate devices. It reads [`devices`](Self::devices),
+    /// [`default_input_device`](Self::default_input_device) and
+    /// [`default_output_device`](Self::default_output_device), and does not change what they
+    /// return. Backends with a native notification API may override this to deliver events
+    /// without polling.
+    ///
+    /// # Errors
+    ///
+    /// - [`ErrorKind::HostUnavailable`] (or another [`devices`](Self::devices) error) if the host
+    ///   cannot be enumerated. This is a failure to observe the host, not a panic.
+    /// - [`ErrorKind::UnsupportedOperation`] if the host reports devices but cannot identify any
+    ///   of them, so changes cannot be tracked.
+    ///
+    /// [`ErrorKind::HostUnavailable`]: crate::ErrorKind::HostUnavailable
+    /// [`ErrorKind::UnsupportedOperation`]: crate::ErrorKind::UnsupportedOperation
+    fn device_events(&self) -> Result<DeviceEvents, Error> {
+        DeviceEvents::for_host(self)
     }
 }
 
@@ -241,6 +269,37 @@ pub trait DeviceTrait: PartialEq + Eq + Hash + Debug + Display + Send + Sync {
     /// [`ErrorKind::UnsupportedConfig`]: crate::ErrorKind::UnsupportedConfig
     /// [`ErrorKind::UnsupportedOperation`]: crate::ErrorKind::UnsupportedOperation
     fn default_output_config(&self) -> Result<SupportedStreamConfig, Error>;
+
+    /// Creates a subscription that reports whether this device is still present, and the system
+    /// default input/output changing in the directions the device supports.
+    ///
+    /// The device's id and supported directions are read once, here; the default routes are
+    /// seeded from `host` at the same time. Pass `host` to [`DeviceEvents::poll`] or
+    /// [`DeviceEvents::drain`] to receive events. See the
+    /// [`device_events`](crate::device_events) module for ordering, deduplication and platform
+    /// coverage.
+    ///
+    /// The default implementation compares enumeration snapshots, and does not change what
+    /// [`HostTrait::devices`] or the host's default-device queries return. Backends with a
+    /// native notification API may override this to deliver events without polling.
+    ///
+    /// # Errors
+    ///
+    /// - [`ErrorKind::DeviceNotAvailable`] (or another error from [`id`](Self::id)) if the
+    ///   device cannot be identified, for example because it is already gone.
+    /// - [`ErrorKind::HostUnavailable`] (or another [`HostTrait::devices`] error) if the host
+    ///   cannot be enumerated. This is a failure to observe the device, not a panic.
+    ///
+    /// [`ErrorKind::DeviceNotAvailable`]: crate::ErrorKind::DeviceNotAvailable
+    /// [`ErrorKind::HostUnavailable`]: crate::ErrorKind::HostUnavailable
+    ///
+    /// [`HostTrait::devices`]: HostTrait::devices
+    fn device_events<H>(&self, host: &H) -> Result<DeviceEvents, Error>
+    where
+        H: HostTrait + ?Sized,
+    {
+        DeviceEvents::for_device(host, self)
+    }
 
     /// The default duplex stream configuration for the device.
     ///

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `HostTrait::device_events()` and `DeviceTrait::device_events()` report device hotplug (arrival and removal) and system default input/output changes through `DeviceEvent`. Host-level watchers report the whole device set and both defaults; device-level watchers report their own presence and defaults in the directions they support. Events are ordered (removals, additions, then defaults, each by `DeviceId`) and deduplicated. The portable implementation compares enumeration snapshots and never panics: an unreachable host reports its error, and a host that cannot identify its devices reports `ErrorKind::UnsupportedOperation`. A watcher allocates its buffers once and does not allocate when delivering events in steady state; when its queue is full the oldest event is dropped and counted by `dropped_events()`.
+- `DeviceId` clones share their identifier string, so cloning a device id does not allocate.
 - `StreamTrait::stop` ends a stream gracefully, draining buffered audio before halting (blocking up to a caller-supplied timeout). Dropping a stream still halts immediately without draining.
 - `CallbackInfo::xrun()` reports buffer over/underruns via the data callback.
 - `DeviceTrait::build_duplex_stream()`, `build_duplex_stream_raw()`, `default_duplex_config()`, and `supports_duplex()` for capture and playback from one device-level callback.

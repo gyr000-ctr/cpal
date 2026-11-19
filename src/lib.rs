@@ -198,6 +198,7 @@
 pub use device_description::{
     DeviceDescription, DeviceDescriptionBuilder, DeviceDirection, DeviceType, InterfaceType,
 };
+pub use device_events::{DEFAULT_EVENT_CAPACITY, DeviceEvent, DeviceEventKind, DeviceEvents};
 pub use error::*;
 pub use platform::{
     ALL_HOSTS, Device, Devices, Host, HostId, Stream, SupportedInputConfigs,
@@ -212,6 +213,7 @@ pub use sample_format::{FromSample, I24, Sample, SampleFormat, SizedSample, U24}
 use wasm_bindgen::prelude::*;
 
 pub mod device_description;
+pub mod device_events;
 mod duplex;
 mod error;
 mod host;
@@ -251,6 +253,9 @@ pub type FrameCount = u32;
 ///
 /// A device ID consists of a [`HostId`] identifying the audio backend and a device-specific identifier string.
 ///
+/// Cloning is cheap: the identifier string is shared, not copied. That keeps the device-events
+/// path free of allocations once a change has been recorded.
+///
 /// # Example
 ///
 /// ```no_run
@@ -278,7 +283,7 @@ pub type FrameCount = u32;
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct DeviceId(crate::platform::HostId, Box<str>);
+pub struct DeviceId(crate::platform::HostId, std::sync::Arc<str>);
 
 impl DeviceId {
     /// Creates a `DeviceId` from a host identifier and a device-specific identifier string.
@@ -290,7 +295,7 @@ impl DeviceId {
     /// [`Display`]: std::fmt::Display
     /// [`FromStr`]: std::str::FromStr
     pub fn new(host: crate::platform::HostId, id: impl AsRef<str>) -> Self {
-        Self(host, Box::from(id.as_ref()))
+        Self(host, std::sync::Arc::from(id.as_ref()))
     }
 
     /// Returns the host this device belongs to.
